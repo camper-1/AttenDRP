@@ -1,4 +1,2 @@
-`data_process.py` – Data preprocessing
-`main.py` – Training and evaluation script
-`models.py` – Model architectures
-`utils.py` – Utility functions
+Run preprocessing: `python data_process.py`
+Train and evaluate the model: `python main.py`
