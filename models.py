@@ -2,7 +2,7 @@ import torch
 import torch.nn.functional as F
 import torch.nn as nn
 import numpy as np
-import torch_geometric.nn as pyg_nn  # GNN相关库
+import torch_geometric.nn as pyg_nn  
 from torch.utils.data import DataLoader, Dataset
 
 
@@ -214,4 +214,5 @@ class SMILESDataset(Dataset):
         idxs = [self.char_to_idx.get(char, self.unknown_idx) for char in smiles]
         idxs = idxs[:self.max_length] + [self.pad_idx] * (self.max_length - len(idxs))
         return torch.tensor(idxs, dtype=torch.long)
+
 
