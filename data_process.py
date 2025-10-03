@@ -47,41 +47,36 @@ def encode_with_model(model, data, scaler):
     with torch.no_grad():
         encoded = model.encoder_layer2(model.encoder_layer1(torch.tensor(scaled, dtype=torch.float32).to(device))).cpu().numpy()
     return encoded
-
 def process_cell_line_data():
-    cell_cn = load_data('data/cell_line/cn_580cell_706gene.csv', 706)
-    cell_exp = load_data('data/cell_line/exp_580cell_706gene.csv', 706)
-    cell_mu = load_data('data/cell_line/mu_580cell_706gene.csv', 706)
+    cell_cn = load_data('data/cn_580cell_706gene.csv', 706)
+    cell_exp = load_data('data/exp_580cell_706gene.csv', 706)
+    cell_mu = load_data('data/mu_580cell_706gene.csv', 706)
 
-    drug_ic50 = pd.read_csv('data/drug/IC50.csv')
-    cell_names = drug_ic50['Cell line name'].unique()
-    idx_map = {name: i for i, name in enumerate(cell_names)}
+    # 为每个模态单独拟合 scaler
+    scaler_cn = MinMaxScaler().fit(cell_cn)
+    scaler_exp = MinMaxScaler().fit(cell_exp)
+    scaler_mu = MinMaxScaler().fit(cell_mu)
 
-    fused_indices = [idx_map[name] for name in drug_ic50['Cell line name']]
-    fused_features = np.stack([np.concatenate([cell_cn[i], cell_exp[i], cell_mu[i]]) for i in fused_indices])
+    cn_scaled = scaler_cn.transform(cell_cn)
+    exp_scaled = scaler_exp.transform(cell_exp)
+    mu_scaled = scaler_mu.transform(cell_mu)
 
-    X_train, X_temp = train_test_split(fused_features, test_size=0.2, random_state=42)
-    X_val, X_test = train_test_split(X_temp, test_size=0.5, random_state=42)
-
-    scaler = MinMaxScaler().fit(X_train)
-
-    cn_train = scaler.transform(cell_cn)
-    exp_train = scaler.transform(cell_exp)
-    mu_train = scaler.transform(cell_mu)
-
-    cn_model, _ = train_autoencoder(cn_train, hidden_dim=256, num_epochs=100, lr=0.001)
-    exp_model, _ = train_autoencoder(exp_train, hidden_dim=256, num_epochs=100, lr=0.001)
-    mu_model, _ = train_autoencoder(mu_train, hidden_dim=256, num_epochs=100, lr=0.001)
+    # 分别训练 autoencoder
+    cn_model, _ = train_autoencoder(cn_scaled, hidden_dim=256, num_epochs=100, lr=0.001)
+    exp_model, _ = train_autoencoder(exp_scaled, hidden_dim=256, num_epochs=100, lr=0.001)
+    mu_model, _ = train_autoencoder(mu_scaled, hidden_dim=256, num_epochs=100, lr=0.001)
 
     save_dir = './data/processed'
     os.makedirs(save_dir, exist_ok=True)
 
-    np.save(os.path.join(save_dir, 'cn_encoded.npy'), encode_with_model(cn_model, cell_cn, scaler))
-    np.save(os.path.join(save_dir, 'exp_encoded.npy'), encode_with_model(exp_model, cell_exp, scaler))
-    np.save(os.path.join(save_dir, 'mu_encoded.npy'), encode_with_model(mu_model, cell_mu, scaler))
+    # 分别保存编码后的特征
+    np.save(os.path.join(save_dir, 'cn_encoded.npy'), encode_with_model(cn_model, cell_cn, scaler_cn))
+    np.save(os.path.join(save_dir, 'exp_encoded.npy'), encode_with_model(exp_model, cell_exp, scaler_exp))
+    np.save(os.path.join(save_dir, 'mu_encoded.npy'), encode_with_model(mu_model, cell_mu, scaler_mu))
+
 
 def process_drug_data():
-    drug_smiles_file = 'data/drug/drug_smiles.csv'
+    drug_smiles_file = 'data/drug_smiles.csv'
     fingerprint_output_file = 'data/processed/fingerprint_features.npz'
     physico_output_file = 'data/processed/physicochemical_features.npz'
     transformed_smiles_output_file = 'data/processed/transformed_smiles_features.npz'
